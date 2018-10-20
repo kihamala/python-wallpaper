@@ -1316,7 +1316,7 @@ class Gui(object):
 			self.index = -1   # index in all results
 
 		# Create a tk/ttk widget that is placed under the thumbnail image. Default implementation
-		def	_createTitle(self, parent):
+		def _createTitle(self, parent):
 			# Take max. 3 lines
 			tmp = str.split(self.title, '\n')
 			if isinstance(tmp, list):
@@ -1674,7 +1674,7 @@ class Gui(object):
 		tk.Label(ppage, text='Username or e-mail').grid(sticky=tkinter.W)
 		tk.Entry(ppage, textvariable=tkVars['pinterestUsername']).grid(row=1, sticky=tkinter.W+tkinter.E, padx=3)
 		tk.Label(ppage, text='Password (not saved)').grid(row=0, column=2, sticky=tkinter.W)
-		gui.pinterestPW = pwEntry = tk.Entry(ppage)
+		gui.pinterestPW = pwEntry = tk.Entry(ppage, show='*')
 		pwEntry.grid(row=1, column=2, sticky=tkinter.W+tkinter.E, padx=3)
 
 		tk.Label(ppage, text='Query').grid(row=3, sticky=tkinter.W)
@@ -1696,7 +1696,7 @@ class Gui(object):
 
 		tk.Entry(ipage, textvariable=tkVars['instagramLogin']).grid(row=1, column=0, sticky=tkinter.W+tkinter.E, padx=10)
 		gui.instaPW = tkinter.StringVar()
-		tk.Entry(ipage, textvariable=gui.instaPW).grid(row=1, column=2, sticky=tkinter.W+tkinter.E, padx=10)
+		tk.Entry(ipage, textvariable=gui.instaPW, show='*').grid(row=1, column=2, sticky=tkinter.W+tkinter.E, padx=10)
 
 		tk.Label(ipage, text='Hash tag').grid(row=3, sticky=tkinter.W, padx=10)
 		tk.Entry(ipage, textvariable=tkVars['instagramTag']).grid(row=4, sticky=tkinter.W+tkinter.E, padx=10)
