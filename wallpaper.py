@@ -1,6 +1,7 @@
 #
 # A humble utility for changing the Windows wallpaper heavily based on James Clarke's flick.py/wallpaper.py,
-# Lev Pasha's Instagram-API-python, Hardik Vasa's google-images-download, Kevin Eichhorn's DeviantArt API.
+# Lev Pasha's Instagram-API-python, Hardik Vasa's google-images-download, Kevin Eichhorn's DeviantArt API,
+# Hau Van's pinterest-client.
 #
 # Copyright 2018 Kimmo Hämäläinen
 # Tested with Python v3.7
@@ -10,9 +11,7 @@
 # License: LGPLv2
 
 # TODO: allow selecting a folder of photos
-# TODO: remember recently set wallpapers (URLs) for easy selection
-# TODO: cropping feature when selecting wallpaper
-# TODO: create notebook tabs on-demand to avoid lagging(?)
+# FIXME: cropping feature when selecting wallpaper
 
 import ctypes
 import flickr
