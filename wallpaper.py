@@ -568,10 +568,10 @@ class Gui(object):
 		#self.applyColorStyle(groupInfo['nameWidget'], groupInfo['gid'], 'green' if matches >= 1 else 'red')
 		#groupInfo['nameWidget'].config(text = newName + text)
 
-	def onGroupQuery(self, config, gui, index, pageNum=1, results={}):
+	def onGroupQuery(self, config, gui, index, pageNum=1, results={}, randomPage=False):
 		self.updateConfig(config, gui)
 		if not results:
-			#self.destroyResultsTab(config, gui, 'photoLoadCallback')
+			self.destroyResultsTab(config, gui, 'photoLoadCallback')
 			results = Gui.Results(config, self, gui, loadPageFunc = lambda resObj, n: self.onGroupQuery(config, gui, index, results=resObj, pageNum=n))
 		#if not prevUrls:
 		#	self.destroyResultsTab(config, gui, 'photoLoadCallback')
@@ -596,6 +596,12 @@ class Gui(object):
 			return
 		#self.ResultPhoto.currPage = pageNum
 		#urls = prevUrls
+		if randomPage:
+			ret = getPhotoURLs(config, groupId=groupId, tags=[groupInfo['tag']], user_id=groupInfo['user'],
+								per_page=Gui.photoCountOnPage, page=1, recycleGroup=flickrGroup, pagesTotalOnly=True)
+			totalPages = int(ret['pagesTotal'])
+			if totalPages > 0:
+				pageNum = random.randint(1, totalPages)
 		ret = getPhotoURLs(config, groupId=groupId, tags=[groupInfo['tag']], user_id=groupInfo['user'],
 							per_page=Gui.photoCountOnPage, page=pageNum, allSizes=True, recycleGroup=flickrGroup,
 							callback=lambda **kwargs: self.photoLoadCallback(config, gui, results, **kwargs))
@@ -631,9 +637,17 @@ class Gui(object):
 		tagEntry = tk.Entry(parent)
 		tagEntry.grid(row=gridRow, column=gridColumn + 3, sticky=tkinter.W+tkinter.E, padx=10)
 		tagEntry.insert(0, group['tag'])
-		tk.Button(parent, text='Remove group', command=lambda: self.onRemoveGroupRow(config, gui, gridRow - 1)).grid(row=gridRow, column=gridColumn + 4, padx=10)
+		if not hasattr(parent, 'closeIcon'):
+			parent.closeIcon = tkinter.PhotoImage("img_close", data='''
+					R0lGODlhCAAIAMIBAAAAADs7O4+Pj9nZ2Ts7Ozs7Ozs7Ozs7OyH+EUNyZWF0ZWQg
+					d2l0aCBHSU1QACH5BAEKAAQALAAAAAAIAAgAAAMVGDBEA0qNJyGw7AmxmuaZhWEU
+					5kEJADs=
+					''')
+		tk.Button(parent, image=parent.closeIcon, command=lambda: self.onRemoveGroupRow(config, gui, gridRow - 1)).grid(row=gridRow, column=gridColumn + 6, ipady=2, ipadx=2)
 		tk.Button(parent, text='Show matches',
-			command=lambda: gui.root.after_idle(lambda: self.onGroupQuery(config, gui, gridRow - 1))).grid(row=gridRow, column=gridColumn + 5, padx=10)
+			command=lambda: gui.root.after_idle(lambda: self.onGroupQuery(config, gui, gridRow - 1))).grid(row=gridRow, column=gridColumn + 4, padx=10)
+		tk.Button(parent, text='Random page',
+			command=lambda: gui.root.after_idle(lambda: self.onGroupQuery(config, gui, gridRow - 1, randomPage=True))).grid(row=gridRow, column=gridColumn + 5, padx=10)
 		return {'gid': gidEntry, 'tag': tagEntry, 'name': nameLabel, 'user': userEntry, 'matches': ''}
 
 	def createGroupEntries(self, config, gui):
@@ -687,32 +701,32 @@ class Gui(object):
 			size = getNextSize(size)
 		return res
 	
-	def flickrTabTitleFunc(self, config, gui, resultsNextIndex, pagesTotal):
-		print('flickrTabTitleFunc', resultsNextIndex, pagesTotal)
-		return 'Result page ' + str(Gui.calculatePageNumber(resultsNextIndex)) + ' of ' + str(pagesTotal)
+	def flickrTabTitleFunc(self, config, gui, nextIndex, pagesTotal):
+		print('flickrTabTitleFunc', nextIndex, pagesTotal)
+		return 'Result page ' + str(Gui.calculatePageNumber(nextIndex)) + ' of ' + str(pagesTotal)
 		
 	def createFlickrResultPage(self, config, gui, results):
-		gui.resultPagePhotoLoadCallback = resultPage = self.createAndSelectResultsPage(config, gui, 'photoLoadCallback', copyFromOld=True,
+		print('createFlickrResultPage', results.nextIndex)
+		gui.resultPagePhotoLoadCallback = self.createAndSelectResultsPage(config, gui, 'photoLoadCallback', results=results,
 															titleFunc=lambda nextIndex: self.flickrTabTitleFunc(config, gui, nextIndex, results.pagesTotal),
-															results=results)
-		return resultPage
+															copyFromOld=True)
+		return gui.resultPagePhotoLoadCallback
 	
 	def photoLoadCallback(self, config, gui, results, **kwargs):
 		index = kwargs['imageIndex']
-		results.nextIndex = index  # set for the tab title function
 		results.pagesTotal = int(kwargs['pagesTotal'])
 		results.photosTotal = int(kwargs['photosTotal'])
+		res = self.retToResultPhoto(config, gui, kwargs['urlDict'], kwargs['flickrPhoto'])
+		res.index = index
+		results.addItem(res)
 		if kwargs['firstPhoto']:
 			print('firstPhoto')
+			results.nextIndex = index  # set for the tab title function
 			resultPage = self.createFlickrResultPage(config, gui, results)
 		else:
 			resultPage = gui.resultPagePhotoLoadCallback
 		#print('photoLoadCallback called, kwargs:', str(kwargs))
 		print('photoLoadCallback', index, len(results))
-		res = self.retToResultPhoto(config, gui, kwargs['urlDict'], kwargs['flickrPhoto'])
-		res.index = index
-		#urls.append(res)
-		results.addItem(res)
 		self.showOnePhoto(config, gui, res, resultPage)
 		results.nextIndex = index + 1
 		
@@ -732,29 +746,28 @@ class Gui(object):
 				tk.Button(frame, text='Jump ' + str(n) + ' pages', command=lambda n=n, np=nextPage: gui.root.after_idle(lambda n=n, np=np: resObj.loadPage(np+n-1))).pack(pady=10)
 	'''
 	
-	def onPhotosSearch(self, config, gui, pageNum=1, results={}):
+	def onPhotosSearch(self, config, gui, pageNum=1, results={}, randomPage=False):
 		self.updateConfig(config, gui)
 		if not results:
-			#self.destroyResultsTab(config, gui, 'photoLoadCallback')
+			self.destroyResultsTab(config, gui, 'photoLoadCallback')
+			gui.resultPagePhotoLoadCallback = {}
 			results = Gui.Results(config, self, gui, loadPageFunc = lambda resObj, n: self.onPhotosSearch(config, gui, results=resObj, pageNum=n))
 		elif results.pagesTotal < pageNum:
 			return False
 		#if not results.pageIsCached(pageNum):
+		if randomPage:
+			ret = getPhotoURLs(config, user_id=config.userId, tags=config.globalTags, text=config.freeText, tag_mode=config.globalTagMode,
+								per_page=Gui.photoCountOnPage, page=1, pagesTotalOnly=True)
+			totalPages = int(ret['pagesTotal'])
+			if totalPages > 0:
+				pageNum = random.randint(1, totalPages)
+		
 		ret = getPhotoURLs(config, user_id=config.userId, tags=config.globalTags, text=config.freeText, tag_mode=config.globalTagMode,
 							per_page=Gui.photoCountOnPage, page=pageNum, allSizes=True,
-							callback=lambda **kwargs: self.photoLoadCallback(config, gui, results, **kwargs))
+							callback=lambda r=results, **kwargs: self.photoLoadCallback(config, gui, r, **kwargs))
 		if not ret:
 			return False
 		resultPage = gui.resultPagePhotoLoadCallback
-		#else:
-		#	results.nextIndex = firstIndex = (pageNum - 1) * Gui.photoCountOnPage
-		#	resultPage = self.createFlickrResultPage(config, gui, results)
-		#	for index in map(lambda n: firstIndex + n, range(Gui.photoCountOnPage)):
-		#		if results.itemIsCached(index):
-		#			self.showOnePhoto(config, gui, results.getItem(index), resultPage)
-		#			results.nextIndex += 1
-		#		else:
-		#			break
 		'''
 		matches = results.photosTotal
 		if matches > 1:
@@ -774,7 +787,7 @@ class Gui(object):
 		
 		resultPage.loadMoreButtons = lambda results, parent, frame: self.defaultLoadMoreButtons(config, gui, results, frame)
 		self.createResultPageButtons(config, gui, results, resultPage)
-		return True # if ret else False
+		return True
 	
 	def destroyResultsTab(self, config, gui, type):
 		if (type in gui.resultPage) and gui.resultPage[type]:
@@ -1184,7 +1197,9 @@ class Gui(object):
 		#parent = self.createAndSelectResultsPage(config, gui, parent.type, title='Result page', results=urls, copyFromOld=True)
 		self.loadNextPage(config, gui, urls, parent)
 	
-	def loadNextPage(self, config, gui, urls, parent):
+	def loadNextPage(self, config, gui, urls, parent, pageNum=0):
+		if pageNum > 0:
+			urls.nextIndex = (pageNum - 1) * Gui.photoCountOnPage
 		print('loadNextPage:', urls.nextIndex)
 		parent = self.createAndSelectResultsPage(config, gui, parent.type, title='Result page', results=urls, copyFromOld=True)
 		assert gui.resultPage[parent.type] == parent
@@ -1234,6 +1249,8 @@ class Gui(object):
 		
 		def __len__(self):
 			return len(self.items)
+		
+		def __bool__(self): return True
 			
 		def values(self):
 			return self.items.values()
@@ -1327,21 +1344,8 @@ class Gui(object):
 			title = threeRows[:100] + ('...' if len(threeRows) >= 100 else '')
 			return tk.Label(parent, text=Gui.makeTclSafeString(title), wraplength=250)
 
-	def on_close_press(self, event, gui):
-		"""Called when the button is pressed over the close button"""
-		notebook = gui.notebook
-		element = notebook.identify(event.x, event.y)
-		print(element)
-		clicked_tab = notebook.tk.call(notebook._w, "identify", "tab", event.x, event.y)
-		print(clicked_tab)
-		clicked_tab = notebook.tk.call(notebook._w, "identify", "element", event.x, event.y)
-		print(clicked_tab)
-
-		if "close" in element:
-			index = notebook.index("@%d,%d" % (event.x, event.y))
-			
 	def createAndSelectResultsPage(self, config, gui, type, title='Results', results={}, titleFunc={}, copyFromOld=False):
-		print(str(title), str(titleFunc), str(copyFromOld))
+		print('createAndSelectResultsPage', title, str(titleFunc), copyFromOld, results.nextIndex if results else 0)
 		resultPage = tk.Frame(gui.notebook)
 		resultPage.type = type
 		resultPage.loadMoreFunc = resultPage.loadMoreButtons = {}
@@ -1354,11 +1358,11 @@ class Gui(object):
 			resultPage.titleFunc = oldPage.titleFunc
 			#if hasattr(oldPage, 'pagesTotal'):
 			#	resultPage.pagesTotal = oldPage.pagesTotal
-			resultPage.title = oldPage.title if not oldPage.titleFunc else oldPage.titleFunc(results.nextIndex)
+			resultPage.title = oldPage.title if not oldPage.titleFunc else oldPage.titleFunc(results.nextIndex if results else 0)
 		else:
 			resultPage.resultsRow = resultPage.resultsCol = 0
 			resultPage.titleFunc = titleFunc
-			resultPage.title = title if not titleFunc else titleFunc(0)
+			resultPage.title = title if not titleFunc else titleFunc(results.nextIndex if results else 0)
 		self.destroyResultsTab(config, gui, type)
 		gui.notebook.add(resultPage, text=resultPage.title)
 		for row in range(6):
@@ -1400,7 +1404,7 @@ class Gui(object):
 			if api.LastJson['items'] and ('next_max_id' in api.LastJson):
 				print('next_max_id:', str(api.LastJson['next_max_id']))
 				resultPage.next_max_id = str(api.LastJson['next_max_id'])
-				resultPage.loadMoreButtons = lambda resObj, parent, frame: self.defaultLoadMoreButtons(config, gui, resObj, frame, canSkipPages=False)
+				resultPage.loadMoreButtons = lambda resObj, parent, frame: self.defaultLoadMoreButtons(config, gui, resObj, frame, parent=parent, canSkipPages=False)
 				resultPage.loadMoreFunc = lambda: gui.root.after_idle(lambda: self.instaQuery(config, gui, maxid=resultPage.next_max_id, results=results))
 			else:
 				resultPage.next_max_id = ''
@@ -1475,11 +1479,11 @@ class Gui(object):
 			obj = gui.googleAPI
 		obj.similar_images_upload_image(filePath)
 
-	def googleTabTitleFunc(self, config, gui, resultsNextIndex, prefix, postfix):
-		print('googleTabTitleFunc', resultsNextIndex, prefix, postfix)
-		return prefix + str(Gui.calculatePageNumber(resultsNextIndex)) + postfix
+	def googleTabTitleFunc(self, config, gui, nextIndex, prefix, postfix):
+		print('googleTabTitleFunc', nextIndex, prefix, postfix)
+		return prefix + str(Gui.calculatePageNumber(nextIndex)) + postfix
 		
-	def googleQuery(self, config, gui, similar_images=''):
+	def googleQuery(self, config, gui, similar_images='', randomPage=False):
 		results = Gui.Results(config, self, gui)
 		self.updateConfig(config, gui)
 		if not hasattr(gui, 'googleAPI') or not gui.googleAPI:
@@ -1504,6 +1508,8 @@ class Gui(object):
 			arguments['color_type'] = config.googleImageColorType
 		paths,urls = obj.download(arguments)
 		results.pagesTotal = Gui.calculatePageNumber(len(urls) - 1)
+		pageNum = random.randint(1, results.pagesTotal) if randomPage else 1
+		results.nextIndex = (pageNum - 1) * Gui.photoCountOnPage
 		if similar_images:
 			resultPage = self.createAndSelectResultsPage(config, gui, 'googleSimilar', results=results,
 							titleFunc=lambda nextIndex: self.googleTabTitleFunc(config, gui, nextIndex,
@@ -1512,8 +1518,6 @@ class Gui(object):
 			resultPage = self.createAndSelectResultsPage(config, gui, 'google', results=results,
 							titleFunc=lambda nextIndex: self.googleTabTitleFunc(config, gui, nextIndex,
 								'"' + str(config.googleKeywords) + '" page ', ' of ' + str(results.pagesTotal)))
-		#resultPhotos = []
-		#loading = 0
 		for index, obj in enumerate(urls):
 			res = self.ResultPhoto()
 			res.index = index
@@ -1525,20 +1529,12 @@ class Gui(object):
 			res.imageHost = obj['image_host']
 			res.createTitleFunc = lambda parent, res=res: self.createGoogleLabel(config, gui, parent, res)
 			results.addItem(res)
-			if index < Gui.photoCountOnPage:
-				self.showOnePhoto(config, gui, res, resultPage)
-				results.nextIndex += 1
-		#while loading > 0:
-		#	if not Gui.threadResultEvent.isSet():
-		#		print('main thread: waiting event')
-		#		Gui.threadResultEvent.wait()
-		#	Gui.threadResultsLock.acquire()
-		#	for key, value in Gui.threadResults:
-		#		self.showThumbnailImage(config, gui, value, resultPage)
-		#		loading -= 1
-		#	Gui.threadResultsLock.release()
-		#	assert loading >= 0
-		resultPage.loadMoreButtons = lambda resObj, parent, frame: self.defaultLoadMoreButtons(config, gui, resObj, frame, canSkipPages=False)
+		nextIndex = results.nextIndex
+		for item in map(lambda n: results.getItem(n + nextIndex), range(Gui.photoCountOnPage)):
+			assert item
+			self.showOnePhoto(config, gui, item, resultPage)
+			results.nextIndex += 1
+		resultPage.loadMoreButtons = lambda resObj, parent, frame: self.defaultLoadMoreButtons(config, gui, resObj, frame, parent=parent, canSkipPages=False)
 		self.createResultPageButtons(config, gui, results, resultPage)
 		
 	def createGooglePage(self, config, gui):
@@ -1606,6 +1602,8 @@ class Gui(object):
 
 		tk.Button(gpage, text='Show matches (max. 100)',
 			command=lambda: gui.root.after_idle(lambda: self.googleQuery(config, gui))).grid(row=20, padx=10, pady=10, sticky=tkinter.W)
+		tk.Button(gpage, text='Go to random page',
+			command=lambda: gui.root.after_idle(lambda: self.googleQuery(config, gui, randomPage=True))).grid(row=20, column=1, padx=10, pady=10, sticky=tkinter.W)
 
 	def createPinterestLabel(self, config, gui, parent, res):
 		frame = tk.Frame(parent)
@@ -1662,7 +1660,7 @@ class Gui(object):
 						results.nextIndex += 1
 		# TODO: find out if there's next page
 		resultPage.loadMoreFunc = lambda: gui.root.after_idle(lambda: self.pinterestQuery(config, gui, nextPage=True, results=results))
-		resultPage.loadMoreButtons = lambda resObj, parent, frame: self.defaultLoadMoreButtons(config, gui, resObj, frame, canSkipPages=False)
+		resultPage.loadMoreButtons = lambda resObj, parent, frame: self.defaultLoadMoreButtons(config, gui, resObj, frame, parent=parent, canSkipPages=False)
 		self.createResultPageButtons(config, gui, results, resultPage)
 
 	def createPinterestPage(self, config, gui):
@@ -1748,6 +1746,8 @@ class Gui(object):
 
 		tk.Button(parent, text='Show matches',
 			command=lambda: gui.root.after_idle(lambda: self.onPhotosSearch(config, gui))).grid(row=6, padx=10, pady=10, sticky=tkinter.W)
+		tk.Button(parent, text='Go to random page',
+			command=lambda: gui.root.after_idle(lambda: self.onPhotosSearch(config, gui, randomPage=True))).grid(row=6, column=1, padx=10, pady=10)
 		self.queryLabel = tk.Label(parent)
 		self.queryLabel.grid(row=6, column=1, sticky=tkinter.W, padx=10)
 		
@@ -1810,22 +1810,27 @@ class Gui(object):
 			command=lambda: gui.root.after_idle(lambda: self.onDevartQuery(config, gui, seed=res.deviationid, endpoint='morelikethis'))).pack()
 		return frame
 
-	def defaultLoadMoreButtons(self, config, gui, resObj, frame, canSkipPages=True):
+	def defaultLoadMoreButtons(self, config, gui, resObj, frame, parent={}, canSkipPages=True):
 		nextPage = Gui.calculatePageNumber(resObj.nextIndex)
 		print('defaultLoadMoreButtons', resObj.nextIndex, len(resObj), 'next page:', nextPage, '/', resObj.pagesTotal)
 		if nextPage > 2 and not resObj.pageIsCached(nextPage - 2) and resObj.loadPageFunc:
 			tk.Button(frame, text='Load prev page', command=lambda np=nextPage: gui.root.after_idle(lambda np=np: resObj.loadPage(np-2))).pack(pady=10)
-		if canSkipPages:
-			for n in [10, 100, 1000, 10000]:
-				if nextPage - n - 1 > 0:
-					tk.Button(frame, text='Back ' + str(n) + ' pages', command=lambda n=n, np=nextPage: gui.root.after_idle(lambda n=n, np=np: resObj.loadPage(np-n-1))).pack(pady=10)
-		
+		for n in [10, 100, 1000, 10000]:
+			pageNum = nextPage - n - 1
+			if pageNum > 0:
+				if canSkipPages:
+					tk.Button(frame, text='Back ' + str(n) + ' pages', command=lambda n=pageNum: gui.root.after_idle(lambda n=n: resObj.loadPage(n))).pack(pady=10)
+				elif parent and resObj.pageIsCached(pageNum):
+					tk.Button(frame, text='Back ' + str(n) + ' pages', command=lambda p=parent, n=pageNum: gui.root.after_idle(lambda p=p, n=n: self.loadNextPage(config, gui, resObj, p, pageNum=n))).pack(pady=10)
 		if nextPage <= resObj.pagesTotal and not resObj.pageIsCached(nextPage) and resObj.loadPageFunc:
 			tk.Button(frame, text='Load next page', command=lambda np=nextPage: gui.root.after_idle(lambda np=np: resObj.loadPage(np))).pack(pady=10)
-		if canSkipPages:
-			for n in [10, 100, 1000, 10000]:
-				if nextPage + n - 1 < resObj.pagesTotal:
-					tk.Button(frame, text='Fwd ' + str(n) + ' pages', command=lambda n=n, np=nextPage: gui.root.after_idle(lambda n=n, np=np: resObj.loadPage(np+n-1))).pack(pady=10)
+		for n in [10, 100, 1000, 10000]:
+			pageNum = nextPage + n - 1
+			if pageNum <= resObj.pagesTotal:
+				if canSkipPages:
+					tk.Button(frame, text='Fwd ' + str(n) + ' pages', command=lambda n=pageNum: gui.root.after_idle(lambda n=n: resObj.loadPage(n))).pack(pady=10)
+				elif parent and resObj.pageIsCached(pageNum):
+					tk.Button(frame, text='Fwd ' + str(n) + ' pages', command=lambda p=parent, n=pageNum: gui.root.after_idle(lambda p=p, n=n: self.loadNextPage(config, gui, resObj, p, pageNum=n))).pack(pady=10)
 
 	def devartTabTitleFunc(self, config, gui, nextIndex, prefix = 'Result page '):
 		print('devartTabTitleFunc', nextIndex)
