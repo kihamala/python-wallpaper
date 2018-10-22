@@ -7,8 +7,7 @@
 # Copyright 2018 Kimmo Hämäläinen
 # Tested with Python v3.7
 #
-# Required ("pip install <module>"): pillow, (httplib2, oauth2,) tkcalendar, babel, InstagramAPI,
-#                                    requests, deviantart, sanction, future
+# You can install the required modules like this: pip install -r requirements.txt
 #
 # License: LGPLv2
 
