@@ -8,7 +8,7 @@
 # Tested with Python v3.7
 #
 # Required ("pip install <module>"): pillow, (httplib2, oauth2,) tkcalendar, babel, InstagramAPI,
-#                                    google_images_download, requests, deviantart, sanction, future
+#                                    requests, deviantart, sanction, future
 #
 # License: LGPLv2
 

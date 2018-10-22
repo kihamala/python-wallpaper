@@ -430,7 +430,7 @@ class googleimagesdownload:
                   'format':[arguments['format'],{'jpg':'ift:jpg','gif':'ift:gif','png':'ift:png','bmp':'ift:bmp','svg':'ift:svg','webp':'webp','ico':'ift:ico'}]}
         #mSize = re.compile('>([0-9]+)MP')
         for key, value in params.items():
-            if value[0] is not None:
+            if (value[0] is not None) and (value[0] in value[1].keys()):
                 #print(value[0], value[1])
                 ext_param = value[1][value[0]]
                 # counter will tell if it is first param added or not
