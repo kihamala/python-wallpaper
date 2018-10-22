@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # A humble utility for changing the Windows wallpaper heavily based on James Clarke's flick.py/wallpaper.py,
 # Lev Pasha's Instagram-API-python, Hardik Vasa's google-images-download, Kevin Eichhorn's DeviantArt API,
@@ -6,7 +7,8 @@
 # Copyright 2018 Kimmo Hämäläinen
 # Tested with Python v3.7
 #
-# Required ("pip install <module>"): pillow, (httplib2, oauth2,) tkcalendar, babel, InstagramAPI, google_images_download, requests, deviantart
+# Required ("pip install <module>"): pillow, (httplib2, oauth2,) tkcalendar, babel, InstagramAPI,
+#                                    google_images_download, requests, deviantart, sanction, future
 #
 # License: LGPLv2
 
