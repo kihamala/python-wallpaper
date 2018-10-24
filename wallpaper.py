@@ -48,6 +48,7 @@ from requests_toolbelt.threaded import pool
 from pinterest import Pinterest
 import math
 import copy
+import requests_oauthlib
 #from io import StringIO
 # For Oauth code:
 #import oauth2 as oauth
@@ -2239,6 +2240,33 @@ def main(config):
 		setWallpaper(config, image, file, mime, flickrPhoto=flickrPhoto)
 	else:
 		sys.exit('No photos found.')
+
+# From https://gist.github.com/blairg23/dc421453b035321a5e27
+def flickrAuth(config):
+	api_key = config.flickrApiKey
+	api_secret = config.flickrApiSecret
+
+	# OAuth URLs
+	request_token_url = 'https://www.flickr.com/services/oauth/request_token'
+	access_token_url = 'https://www.flickr.com/services/oauth/access_token'
+	authorization_url = 'https://www.flickr.com/services/oauth/authorize'
+
+	callback_uri = 'www.yle.fi'  # TODO
+
+	oauth_session = requests_oauthlib.OAuth1Session(client_key=api_key, client_secret=api_secret, signature_method=u'HMAC-SHA1', signature_type=u'AUTH_HEADER', callback_uri=callback_uri)
+
+	# First step, fetch the request token:
+	request_token = oauth_session.fetch_request_token(request_token_url)
+
+	# Second step, follow this link and authorize:
+	print(oauth_session.authorization_url(authorization_url))
+
+	# Third step, fetch the access token:
+	redirect_response = input('Paste the full redirect URL here.')
+	print(oauth_session.parse_authorization_response(redirect_response))
+	print(oauth_session.fetch_access_token(access_token_url))
+
+	# Done! You can now make authenticated requests using the token and token secret.
 
 '''
 def getOAuthToken():
